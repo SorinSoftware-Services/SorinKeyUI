@@ -33,7 +33,7 @@ local C = {
     border      = Color3.fromRGB(48,  54,  61),
     neonB       = Color3.fromRGB(0,   229, 255),
     neonP       = Color3.fromRGB(187, 134, 252),
-    discord     = Color3.fromRGB(88,  101, 242),  -- Discord blurple
+    discord     = Color3.fromRGB(88,  101, 242),
 }
 
 -- ── Helper constructors ───────────────────────────────────────────────────
@@ -177,12 +177,27 @@ function SorinUILib:build()
     local blurFx = Instance.new("BlurEffect")
     blurFx.Size = 16; blurFx.Name = "SorinBlur"; blurFx.Parent = Lighting
 
-    -- Window sizing
-    -- Banner lives at the bottom: +58px to total height when enabled
+    -- ── Window sizing (3-panel layout) ────────────────────────────────────
+    -- Changelog lives as a permanent right panel, not a tab.
+    -- clW=0 on mobile or when changelog disabled.
+    local clW      = (hasCL and not mobile) and 192 or 0
+    local leftW    = hasInfo and 178 or 0
     local bannerH  = hasBanner and 58 or 0
-    local baseW    = hasInfo and 800 or 620
-    local baseH    = 415 + bannerH     -- mainArea always same height, banner added below
-    local mainAreaH = 415 - 46         -- always 369px of content
+    local mainAreaH = 369   -- content rows between topBar and banner
+    local baseH    = 46 + mainAreaH + bannerH  -- topBar + content + banner
+
+    -- Key panel gets whatever space is left between leftW and clW
+    local baseW
+    if hasInfo and clW > 0 then
+        baseW = leftW + 450 + clW   -- 178 + 450 + 192 = 820
+    elseif hasInfo then
+        baseW = leftW + 472         -- 178 + 472 = 650
+    elseif clW > 0 then
+        baseW = 440 + clW           -- 440 + 192 = 632
+    else
+        baseW = 468
+    end
+    local keyW = baseW - leftW - clW  -- width of the key content area
 
     local container = Instance.new("Frame")
     container.BackgroundColor3       = C.surface
@@ -203,15 +218,6 @@ function SorinUILib:build()
     glass.Size = UDim2.new(1,0,1,0); glass.BackgroundColor3 = Color3.new(1,1,1)
     glass.BackgroundTransparency = 0.975; glass.BorderSizePixel = 0
     glass.ZIndex = 1; glass.Parent = container; corner(glass, 14)
-
-    -- Outer glow pulse
-    local outerGlow = Instance.new("Frame")
-    outerGlow.Size = UDim2.new(1,90,1,90); outerGlow.AnchorPoint = Vector2.new(0.5,0.5)
-    outerGlow.Position = UDim2.new(0.5,0,0.5,0); outerGlow.BackgroundColor3 = C.accent
-    outerGlow.BackgroundTransparency = 0.91; outerGlow.BorderSizePixel = 0
-    outerGlow.ZIndex = -1; outerGlow.Parent = backdrop; corner(outerGlow, 32)
-    TweenService:Create(outerGlow, TweenInfo.new(4,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
-        {BackgroundTransparency=0.86, Size=UDim2.new(1,110,1,110)}):Play()
 
     -- ── TOP BAR ──────────────────────────────────────────────────────────
     local topBar = Instance.new("Frame")
@@ -258,55 +264,14 @@ function SorinUILib:build()
         vb.ZIndex = 11; vb.Parent = brand; corner(vb, 4)
     end
 
-    -- Tabs (centered)
-    local tabCount = hasCL and 2 or 1
-    local tabBarW  = tabCount * 108 + (tabCount-1)*4
-    local tabBar = Instance.new("Frame")
-    tabBar.Size = UDim2.new(0,tabBarW,0,30); tabBar.AnchorPoint = Vector2.new(0.5,0.5)
-    tabBar.Position = UDim2.new(0.5,0,0.5,0); tabBar.BackgroundColor3 = C.surfaceL
-    tabBar.BorderSizePixel = 0; tabBar.ZIndex = 11; tabBar.Parent = topBar
-    corner(tabBar, 8)
-    local tabLayout = Instance.new("UIListLayout", tabBar)
-    tabLayout.FillDirection = Enum.FillDirection.Horizontal
-    tabLayout.Padding = UDim.new(0,4)
-    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    tabLayout.VerticalAlignment   = Enum.VerticalAlignment.Center
-
-    local tabDefs = { {id="key", label="Key System", icon="🔑"} }
-    if hasCL then table.insert(tabDefs, {id="changelog", label="Changelog", icon="📋"}) end
-
-    local tabBtns = {}
-    for _, td in ipairs(tabDefs) do
-        local active = td.id == "key"
-        local tb = Instance.new("TextButton")
-        tb.Name = "Tab_"..td.id; tb.Size = UDim2.new(0,106,1,-6)
-        tb.BackgroundColor3 = active and C.surfaceM or C.surfaceL
-        tb.BackgroundTransparency = active and 0 or 1
-        tb.BorderSizePixel = 0; tb.Text = td.icon.."  "..td.label
-        tb.TextColor3 = active and C.txtP or C.txtM
-        tb.TextSize = 11; tb.Font = Enum.Font.GothamSemibold
-        tb.AutoButtonColor = false; tb.ZIndex = 12; tb.Parent = tabBar
-        corner(tb, 6)
-        if active then
-            local ind = Instance.new("Frame"); ind.Name = "Indicator"
-            ind.Size = UDim2.new(0.65,0,0,2); ind.Position = UDim2.new(0.175,0,1,-1)
-            ind.BackgroundColor3 = C.primary; ind.BorderSizePixel = 0; ind.ZIndex = 13
-            ind.Parent = tb; corner(ind, 1)
-        end
-        tabBtns[td.id] = tb
-        tb.MouseButton1Click:Connect(function() self:_switchTab(td.id) end)
-    end
-
-    -- ── Discord button (top-right area) ──────────────────────────────────
-    -- Uses cfg.DiscordIcon (rbxassetid) if set, else a styled "D" in blurple
+    -- ── Discord button ────────────────────────────────────────────────────
     if cfg.DiscordLink and cfg.DiscordLink ~= "" then
         local db = Instance.new("TextButton")
         db.Size = UDim2.new(0,30,0,30); db.Position = UDim2.new(1,-80,0.5,0)
         db.AnchorPoint = Vector2.new(0,0.5); db.BackgroundColor3 = C.discord
         db.BackgroundTransparency = 0.72; db.BorderSizePixel = 0
         db.AutoButtonColor = false; db.ZIndex = 11; db.Parent = topBar
-        corner(db, 8)
-        stroke(db, C.discord, 1, 0.5)
+        corner(db, 8); stroke(db, C.discord, 1, 0.5)
 
         if cfg.DiscordIcon and cfg.DiscordIcon ~= "" then
             db.Text = ""
@@ -316,10 +281,8 @@ function SorinUILib:build()
             dImg.Image = cfg.DiscordIcon; dImg.ScaleType = Enum.ScaleType.Fit
             dImg.ZIndex = 12; dImg.Parent = db
         else
-            -- Styled "D" as Discord stand-in
-            db.Text = "D"
-            db.TextColor3 = Color3.new(1,1,1); db.TextSize = 15
-            db.Font = Enum.Font.GothamBold
+            db.Text = "D"; db.TextColor3 = Color3.new(1,1,1)
+            db.TextSize = 15; db.Font = Enum.Font.GothamBold
         end
 
         db.MouseEnter:Connect(function()
@@ -334,7 +297,6 @@ function SorinUILib:build()
     end
 
     -- ── Close button ─────────────────────────────────────────────────────
-    -- Using "X" — ✕/✗ are not in the Gotham font atlas in Roblox
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0,30,0,30); closeBtn.Position = UDim2.new(1,-42,0.5,0)
     closeBtn.AnchorPoint = Vector2.new(0,0.5); closeBtn.BackgroundColor3 = C.err
@@ -351,23 +313,18 @@ function SorinUILib:build()
     closeBtn.MouseButton1Click:Connect(function() self:close() end)
 
     -- ── LEFT PANEL (User Info) ────────────────────────────────────────────
-    local leftW = hasInfo and 178 or 0
     if hasInfo then
-        -- Store full HWID for toggle
         local fullHWID = getHWID()
         local hwIDvisible = false
 
         local lp = Instance.new("Frame")
-        lp.Name = "UserPanel"; lp.Size = UDim2.new(0,leftW,1,-46)
+        lp.Name = "UserPanel"; lp.Size = UDim2.new(0,leftW,0,mainAreaH)
         lp.Position = UDim2.new(0,0,0,46); lp.BackgroundColor3 = C.bg
         lp.BorderSizePixel = 0; lp.ZIndex = 5; lp.Parent = container
-        -- Corner so bottom-left matches the container
         corner(lp, 14)
-        -- Fill the top corners (hidden behind topBar anyway, but keeps top edge clean)
         local lpTopFill = Instance.new("Frame")
         lpTopFill.Size = UDim2.new(1,0,0,14); lpTopFill.BackgroundColor3 = C.bg
         lpTopFill.BorderSizePixel = 0; lpTopFill.Parent = lp
-        -- Right edge separator
         local sep = Instance.new("Frame"); sep.Size = UDim2.new(0,1,1,0)
         sep.Position = UDim2.new(1,-1,0,0); sep.BackgroundColor3 = C.border
         sep.BackgroundTransparency = 0.3; sep.BorderSizePixel = 0; sep.Parent = lp
@@ -376,7 +333,7 @@ function SorinUILib:build()
         inner.Size = UDim2.new(1,-20,1,-14); inner.Position = UDim2.new(0,10,0,10)
         inner.Parent = lp
 
-        -- ── Avatar ───────────────────────────────────────────────────────
+        -- Avatar
         local avFrame = Instance.new("Frame"); avFrame.Size = UDim2.new(0,58,0,58)
         avFrame.AnchorPoint = Vector2.new(0.5,0); avFrame.Position = UDim2.new(0.5,0,0,6)
         avFrame.BackgroundColor3 = C.surfaceL; avFrame.BorderSizePixel = 0
@@ -392,7 +349,6 @@ function SorinUILib:build()
             end)
             if ok then avImg.Image = img end
         end)
-        -- Online dot
         local dot = Instance.new("Frame"); dot.Size = UDim2.new(0,13,0,13)
         dot.Position = UDim2.new(1,-13,1,-13); dot.BackgroundColor3 = C.success
         dot.BorderSizePixel = 0; dot.ZIndex = 3; dot.Parent = avFrame; corner(dot, 7)
@@ -400,7 +356,6 @@ function SorinUILib:build()
         TweenService:Create(dot,TweenInfo.new(1.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
             {BackgroundTransparency=0.4}):Play()
 
-        -- Names
         lbl({Size=UDim2.new(1,0,0,17),Position=UDim2.new(0,0,0,72),
              Text=Players.LocalPlayer.DisplayName, TextColor3=C.txtP,
              TextSize=14,Font=Enum.Font.GothamBold,
@@ -411,12 +366,10 @@ function SorinUILib:build()
              TextSize=11,Font=Enum.Font.Gotham,
              TextXAlignment=Enum.TextXAlignment.Center}, inner)
 
-        -- Divider
         local div = Instance.new("Frame"); div.Size = UDim2.new(0.8,0,0,1)
         div.Position = UDim2.new(0.1,0,0,112); div.BackgroundColor3 = C.border
         div.BackgroundTransparency = 0.3; div.BorderSizePixel = 0; div.Parent = inner
 
-        -- ── Info rows (Executor, Device) ──────────────────────────────────
         local infoRows = {
             {"💻", "Executor", getExecutor()},
             {"🖥️",  "Device",   "PC"},
@@ -426,7 +379,6 @@ function SorinUILib:build()
             local rf = Instance.new("Frame"); rf.BackgroundTransparency = 1
             rf.Size = UDim2.new(1,0,0,34); rf.Position = UDim2.new(0,0,0,rowY)
             rf.Parent = inner
-            -- Icon bg pill
             local ibg = Instance.new("Frame"); ibg.Size = UDim2.new(0,28,0,28)
             ibg.AnchorPoint = Vector2.new(0,0.5); ibg.Position = UDim2.new(0,0,0.5,0)
             ibg.BackgroundColor3 = C.surfaceL; ibg.BorderSizePixel = 0; ibg.Parent = rf
@@ -443,11 +395,11 @@ function SorinUILib:build()
             rowY = rowY + 38
         end
 
-        -- ── HWID row (cloaked, with eye toggle) ───────────────────────────
+        -- HWID row
         local hwRow = Instance.new("Frame"); hwRow.BackgroundTransparency = 1
         hwRow.Size = UDim2.new(1,0,0,34); hwRow.Position = UDim2.new(0,0,0,rowY)
         hwRow.Parent = inner
-        -- Icon
+
         local hwIcoBg = Instance.new("Frame"); hwIcoBg.Size = UDim2.new(0,28,0,28)
         hwIcoBg.AnchorPoint = Vector2.new(0,0.5); hwIcoBg.Position = UDim2.new(0,0,0.5,0)
         hwIcoBg.BackgroundColor3 = C.surfaceL; hwIcoBg.BorderSizePixel = 0; hwIcoBg.Parent = hwRow
@@ -457,12 +409,10 @@ function SorinUILib:build()
         lbl({Size=UDim2.new(1,-36,0,13),Position=UDim2.new(0,34,0,3),
              Text="HWID",TextColor3=C.txtM,TextSize=10,Font=Enum.Font.Gotham,
              TextXAlignment=Enum.TextXAlignment.Left}, hwRow)
-        -- HWID value label (dots by default)
         local hwVal = lbl({Size=UDim2.new(1,-64,0,15),Position=UDim2.new(0,34,0,17),
              Text="••••••••••••",TextColor3=C.txtS,TextSize=11,Font=Enum.Font.GothamSemibold,
              TextXAlignment=Enum.TextXAlignment.Left,
              TextTruncate=Enum.TextTruncate.AtEnd}, hwRow)
-        -- Eye toggle button
         local eyeBtn = Instance.new("TextButton")
         eyeBtn.Size = UDim2.new(0,22,0,22); eyeBtn.AnchorPoint = Vector2.new(1,0.5)
         eyeBtn.Position = UDim2.new(1,0,0.5,0); eyeBtn.BackgroundColor3 = C.surfaceL
@@ -484,7 +434,7 @@ function SorinUILib:build()
         end)
         rowY = rowY + 42
 
-        -- ── Date + Time card ──────────────────────────────────────────────
+        -- Date + Time card
         local dtCard = Instance.new("Frame")
         dtCard.Size = UDim2.new(1,0,0,52); dtCard.Position = UDim2.new(0,0,0,rowY)
         dtCard.BackgroundColor3 = C.surfaceL; dtCard.BorderSizePixel = 0; dtCard.Parent = inner
@@ -495,7 +445,6 @@ function SorinUILib:build()
         dtInner.Size = UDim2.new(1,-16,1,0); dtInner.Position = UDim2.new(0,8,0,0)
         dtInner.Parent = dtCard
 
-        -- Calendar icon pill
         local calBg = Instance.new("Frame"); calBg.Size = UDim2.new(0,26,0,26)
         calBg.AnchorPoint = Vector2.new(0,0.5); calBg.Position = UDim2.new(0,0,0.5,0)
         calBg.BackgroundColor3 = C.accent; calBg.BackgroundTransparency = 0.65
@@ -510,7 +459,6 @@ function SorinUILib:build()
              Text="",TextColor3=C.primary,TextSize=13,Font=Enum.Font.GothamBold,
              TextXAlignment=Enum.TextXAlignment.Left}, dtInner)
 
-        -- Live clock + date updater
         local MONTH_ABBR = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"}
         local DAY_ABBR   = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"}
         task.spawn(function()
@@ -527,7 +475,6 @@ function SorinUILib:build()
     -- ── SHOP BANNER (bottom of window) ────────────────────────────────────
     if hasBanner then
         local sb = cfg.ShopBanner
-        -- Separator line above banner
         local banSep = Instance.new("Frame")
         banSep.Size = UDim2.new(1,0,0,1); banSep.AnchorPoint = Vector2.new(0,1)
         banSep.Position = UDim2.new(0,0,1,-bannerH); banSep.BackgroundColor3 = C.border
@@ -539,15 +486,12 @@ function SorinUILib:build()
         banFrame.Position = UDim2.new(0,0,1,0); banFrame.BackgroundColor3 = C.bg
         banFrame.BorderSizePixel = 0; banFrame.Text = ""; banFrame.AutoButtonColor = false
         banFrame.ZIndex = 8; banFrame.Parent = container
-        -- Rounded bottom corners only (clip top edge with a fill frame)
         corner(banFrame, 14)
         local banTopFill = Instance.new("Frame"); banTopFill.Size = UDim2.new(1,0,0,14)
         banTopFill.BackgroundColor3 = C.bg; banTopFill.BorderSizePixel = 0; banTopFill.Parent = banFrame
-        -- Subtle gradient
         grad(banFrame, {C.surfaceM, C.bg}, 90)
-        local bStr = stroke(banFrame, C.accent, 0, 1)  -- invisible stroke, activates on hover
+        local bStr = stroke(banFrame, C.accent, 0, 1)
 
-        -- Inner content
         local banInner = Instance.new("Frame"); banInner.BackgroundTransparency=1
         banInner.Size = UDim2.new(1,-24,1,0); banInner.Position = UDim2.new(0,12,0,0)
         banInner.Parent = banFrame
@@ -566,7 +510,6 @@ function SorinUILib:build()
              Text=sb.Sub or "",TextColor3=C.txtM,TextSize=10,
              Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=9}, banInner)
 
-        -- Buy button (pill style)
         local buyBtn = Instance.new("TextButton")
         buyBtn.Size = UDim2.new(0,100,0,30); buyBtn.AnchorPoint = Vector2.new(1,0.5)
         buyBtn.Position = UDim2.new(1,0,0.5,0); buyBtn.BackgroundColor3 = C.accent
@@ -596,71 +539,78 @@ function SorinUILib:build()
         end)
     end
 
-    -- ── MAIN AREA ─────────────────────────────────────────────────────────
+    -- ════════ KEY AREA ════════════════════════════════════════════════════
+    -- The key panel fills the space between the left panel and changelog panel.
     local mainArea = Instance.new("Frame")
     mainArea.Name = "MainArea"; mainArea.BackgroundTransparency = 1
     mainArea.ClipsDescendants = true
-    mainArea.Size = UDim2.new(1,-leftW,0,mainAreaH)
+    mainArea.Size = UDim2.new(0,keyW,0,mainAreaH)
     mainArea.Position = UDim2.new(0,leftW,0,46)
     mainArea.Parent = container
 
-    -- ════════ KEY TAB ════════════════════════════════════════════════════
     local keyTab = Instance.new("Frame"); keyTab.Name = "KeyTab"
     keyTab.Size = UDim2.new(1,0,1,0); keyTab.BackgroundTransparency = 1
     keyTab.Parent = mainArea
 
+    -- Content frame (inner padding)
     local content = Instance.new("Frame"); content.Name = "KeyContent"
-    content.Size = UDim2.new(1,-48,1,-20); content.Position = UDim2.new(0,24,0,10)
+    content.Size = UDim2.new(1,-44,1,-32); content.Position = UDim2.new(0,22,0,18)
     content.BackgroundTransparency = 1; content.Parent = keyTab
 
-    -- Icon frame with animated border gradient
-    local iconFrame = Instance.new("Frame"); iconFrame.Name = "IconFrame"
-    iconFrame.Size = UDim2.new(0,46,0,46); iconFrame.AnchorPoint = Vector2.new(0.5,0)
-    iconFrame.Position = UDim2.new(0.5,0,0,2)
-    iconFrame.BackgroundColor3 = C.surfaceL; iconFrame.BorderSizePixel = 0
-    iconFrame.ZIndex = 3; iconFrame.Parent = content; corner(iconFrame, 12)
-    grad(iconFrame, {C.primary, C.primaryG, C.accent}, 45)
-    local ist = stroke(iconFrame, C.primary, 2, 0.35)
-    local sg = Instance.new("UIGradient")
-    sg.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0,C.neonB), ColorSequenceKeypoint.new(0.5,C.primary),
-        ColorSequenceKeypoint.new(1,C.neonP)}; sg.Parent = ist
-    TweenService:Create(sg,TweenInfo.new(3,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut,-1),{Rotation=360}):Play()
+    -- ── Compact panel header (Arquel-style: small icon + title, left-aligned) ──
+    -- No large bouncing icon. Just an inline icon tile and text.
+    local hIconBg = Instance.new("Frame"); hIconBg.Name = "HeaderIcon"
+    hIconBg.Size = UDim2.new(0,28,0,28)
+    hIconBg.Position = UDim2.new(0,0,0,0)
+    hIconBg.BackgroundColor3 = C.surfaceL
+    hIconBg.BackgroundTransparency = loading and 1 or 0
+    hIconBg.BorderSizePixel = 0; hIconBg.ZIndex = 3
+    hIconBg.Parent = content
+    corner(hIconBg, 8)
+    stroke(hIconBg, C.primary, 1, 0.5)
 
-    local iconImg = Instance.new("ImageLabel"); iconImg.BackgroundTransparency = 1
-    iconImg.Size = UDim2.new(0,36,0,36); iconImg.AnchorPoint = Vector2.new(0.5,0.5)
-    iconImg.Position = UDim2.new(0.5,0,0.5,0); iconImg.ScaleType = Enum.ScaleType.Fit
-    iconImg.ZIndex = 4
-    iconImg.Image = (cfg.LogoImage and cfg.LogoImage ~= "") and cfg.LogoImage or "rbxassetid://84637769762084"
-    iconImg.Parent = iconFrame
-
-    if loading then
-        iconFrame.Size = UDim2.new(0,0,0,0)
-        iconFrame.BackgroundTransparency = 1
-        iconImg.ImageTransparency = 1
+    if cfg.LogoImage and cfg.LogoImage ~= "" then
+        local hIco = Instance.new("ImageLabel")
+        hIco.BackgroundTransparency = 1
+        hIco.Size = UDim2.new(0,20,0,20)
+        hIco.AnchorPoint = Vector2.new(0.5,0.5)
+        hIco.Position = UDim2.new(0.5,0,0.5,0)
+        hIco.Image = cfg.LogoImage; hIco.ScaleType = Enum.ScaleType.Fit
+        hIco.ZIndex = 4; hIco.Parent = hIconBg
     end
 
-    local titleLbl = lbl({Size=UDim2.new(1,0,0,20),Position=UDim2.new(0,0,0,54),
-        Text="Key Verification System",TextColor3=C.txtP,TextSize=16,
-        Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Center,
+    local hTitleLbl = lbl({
+        Size=UDim2.new(1,-36,0,28), Position=UDim2.new(0,34,0,0),
+        Text="Key Verification", TextColor3=C.txtP, TextSize=15,
+        Font=Enum.Font.GothamBold, TextXAlignment=Enum.TextXAlignment.Left,
         TextTransparency=loading and 1 or 0}, content)
 
-    local subLbl = lbl({Size=UDim2.new(1,0,0,15),Position=UDim2.new(0,0,0,75),
-        Text="Choose your key duration, complete the steps, then enter your key",
-        TextColor3=C.txtS,TextSize=11,Font=Enum.Font.Gotham,
-        TextXAlignment=Enum.TextXAlignment.Center,
+    -- Subtitle (muted, left-aligned like Arquel)
+    local subLbl = lbl({
+        Size=UDim2.new(1,0,0,13), Position=UDim2.new(0,0,0,34),
+        Text="Enter your key to continue",
+        TextColor3=C.txtM, TextSize=10, Font=Enum.Font.Gotham,
+        TextXAlignment=Enum.TextXAlignment.Left,
         TextTransparency=loading and 1 or 0}, content)
 
-    -- STEP 1
-    local s1Lbl = lbl({Size=UDim2.new(1,0,0,13),Position=UDim2.new(0,0,0,98),
-        Text="STEP 1  –  Choose your key duration",TextColor3=C.txtM,TextSize=10,
-        Font=Enum.Font.GothamSemibold,TextXAlignment=Enum.TextXAlignment.Left,
+    -- Divider under header
+    local hDiv = Instance.new("Frame"); hDiv.Name = "HeaderDivider"
+    hDiv.Size = UDim2.new(1,0,0,1); hDiv.Position = UDim2.new(0,0,0,54)
+    hDiv.BackgroundColor3 = C.border; hDiv.BackgroundTransparency = 0.4
+    hDiv.BorderSizePixel = 0; hDiv.Parent = content
+
+    -- ── Section: Duration selection ───────────────────────────────────────
+    local s1Lbl = lbl({
+        Size=UDim2.new(1,0,0,12), Position=UDim2.new(0,0,0,65),
+        Text="Select key duration",
+        TextColor3=C.txtM, TextSize=10, Font=Enum.Font.GothamSemibold,
+        TextXAlignment=Enum.TextXAlignment.Left,
         TextTransparency=loading and 1 or 0}, content)
 
     -- Provider buttons
     local providers = cfg.Providers or {}
     local provRow = Instance.new("Frame"); provRow.Name = "ProvRow"
-    provRow.Size = UDim2.new(1,0,0,56); provRow.Position = UDim2.new(0,0,0,114)
+    provRow.Size = UDim2.new(1,0,0,58); provRow.Position = UDim2.new(0,0,0,80)
     provRow.BackgroundTransparency = 1; provRow.Parent = content
 
     if #providers > 0 then
@@ -673,24 +623,34 @@ function SorinUILib:build()
             btn.BackgroundColor3 = C.surfaceL; btn.BorderSizePixel = 0
             btn.Text = ""; btn.AutoButtonColor = false
             btn.BackgroundTransparency = loading and 1 or 0
-            btn.Parent = provRow; corner(btn, 10)
+            btn.Parent = provRow; corner(btn, 9)
             local ps = stroke(btn, C.border, 1, 0.4)
 
-            lbl({Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,4),
+            -- Colored top accent bar (gives each button a unique identity)
+            local topBar2 = Instance.new("Frame")
+            topBar2.Size = UDim2.new(0.55,0,0,2)
+            topBar2.AnchorPoint = Vector2.new(0.5,0)
+            topBar2.Position = UDim2.new(0.5,0,0,0)
+            topBar2.BackgroundColor3 = prov.color or C.primary
+            topBar2.BackgroundTransparency = 0.25
+            topBar2.BorderSizePixel = 0; topBar2.ZIndex = 3
+            topBar2.Parent = btn; corner(topBar2, 1)
+
+            lbl({Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,8),
                  Text=prov.duration or prov.name,TextColor3=prov.color or C.primary,
                  TextSize=15,Font=Enum.Font.GothamBold,
                  TextXAlignment=Enum.TextXAlignment.Center,
                  TextTransparency=loading and 1 or 0}, btn)
 
             local dots = string.rep("●", prov.checkpoints or 1, " ")
-            lbl({Size=UDim2.new(1,0,0,14),Position=UDim2.new(0,0,0,26),
-                 Text=dots,TextColor3=prov.color or C.primary,TextSize=9,
+            lbl({Size=UDim2.new(1,0,0,13),Position=UDim2.new(0,0,0,30),
+                 Text=dots,TextColor3=prov.color or C.primary,TextSize=8,
                  Font=Enum.Font.GothamSemibold,TextXAlignment=Enum.TextXAlignment.Center,
                  TextTransparency=loading and 1 or 0}, btn)
 
             local cpText = prov.checkpoints and
                 (tostring(prov.checkpoints).." Checkpoint"..((prov.checkpoints>1) and "s" or "")) or ""
-            lbl({Size=UDim2.new(1,0,0,13),Position=UDim2.new(0,0,0,40),
+            lbl({Size=UDim2.new(1,0,0,13),Position=UDim2.new(0,0,0,44),
                  Text=cpText,TextColor3=C.txtM,TextSize=9,Font=Enum.Font.Gotham,
                  TextXAlignment=Enum.TextXAlignment.Center,
                  TextTransparency=loading and 1 or 0}, btn)
@@ -698,11 +658,11 @@ function SorinUILib:build()
             local cd = prov.colorDark or prov.color or C.primaryD
             btn.MouseEnter:Connect(function()
                 TweenService:Create(btn,TweenInfo.new(0.15),{BackgroundColor3=C.surfaceM}):Play()
-                TweenService:Create(ps, TweenInfo.new(0.15),{Color=prov.color or C.primary,Transparency=0.08,Thickness=1.5}):Play()
+                TweenService:Create(ps,TweenInfo.new(0.15),{Color=prov.color or C.primary,Transparency=0.08,Thickness=1.5}):Play()
             end)
             btn.MouseLeave:Connect(function()
                 TweenService:Create(btn,TweenInfo.new(0.15),{BackgroundColor3=C.surfaceL}):Play()
-                TweenService:Create(ps, TweenInfo.new(0.15),{Color=C.border,Transparency=0.4,Thickness=1}):Play()
+                TweenService:Create(ps,TweenInfo.new(0.15),{Color=C.border,Transparency=0.4,Thickness=1}):Play()
             end)
             btn.MouseButton1Down:Connect(function()
                 TweenService:Create(btn,TweenInfo.new(0.08),{BackgroundColor3=cd}):Play()
@@ -714,15 +674,16 @@ function SorinUILib:build()
         end
     end
 
-    -- STEP 2
-    local s2Lbl = lbl({Size=UDim2.new(1,0,0,13),Position=UDim2.new(0,0,0,179),
-        Text="STEP 2  –  Paste your key below and verify",TextColor3=C.txtM,TextSize=10,
-        Font=Enum.Font.GothamSemibold,TextXAlignment=Enum.TextXAlignment.Left,
+    -- ── Section: Key input ────────────────────────────────────────────────
+    local s2Lbl = lbl({
+        Size=UDim2.new(1,0,0,12), Position=UDim2.new(0,0,0,148),
+        Text="Paste your key below",
+        TextColor3=C.txtM, TextSize=10, Font=Enum.Font.GothamSemibold,
+        TextXAlignment=Enum.TextXAlignment.Left,
         TextTransparency=loading and 1 or 0}, content)
 
-    -- Input
     local inputSec = Instance.new("Frame"); inputSec.Name = "InputSection"
-    inputSec.Size = UDim2.new(1,0,0,42); inputSec.Position = UDim2.new(0,0,0,195)
+    inputSec.Size = UDim2.new(1,0,0,42); inputSec.Position = UDim2.new(0,0,0,163)
     inputSec.BackgroundColor3 = C.surfaceL; inputSec.BorderSizePixel = 0
     inputSec.BackgroundTransparency = loading and 1 or 0
     inputSec.Parent = content; corner(inputSec, 9)
@@ -750,16 +711,13 @@ function SorinUILib:build()
         if enter then self:_verify() end
     end)
 
-    -- Verify button
+    -- Verify button (clean, no gradient — less AI-looking)
     local verifyBtn = Instance.new("TextButton"); verifyBtn.Name = "VerifyButton"
-    verifyBtn.Size = UDim2.new(1,0,0,38); verifyBtn.Position = UDim2.new(0,0,0,247)
+    verifyBtn.Size = UDim2.new(1,0,0,42); verifyBtn.Position = UDim2.new(0,0,0,213)
     verifyBtn.BackgroundColor3 = C.success; verifyBtn.BorderSizePixel = 0
     verifyBtn.Text = ""; verifyBtn.AutoButtonColor = false
     verifyBtn.BackgroundTransparency = loading and 1 or 0
     verifyBtn.Parent = content; corner(verifyBtn, 9)
-    local vGrad = Instance.new("UIGradient")
-    vGrad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0,C.success),ColorSequenceKeypoint.new(1,C.successD)}
-    vGrad.Rotation = 90; vGrad.Parent = verifyBtn
     local vGlow = stroke(verifyBtn, C.successG, 0, 0.8)
     lbl({Size=UDim2.new(0,26,1,0),Position=UDim2.new(0,10,0,0),
          Text="✓",TextColor3=Color3.new(1,1,1),TextSize=17,Font=Enum.Font.GothamBold,
@@ -785,48 +743,92 @@ function SorinUILib:build()
     end)
     verifyBtn.MouseButton1Click:Connect(function() self:_verify() end)
 
-    -- ════════ CHANGELOG TAB ════════════════════════════════════════════════
+    -- ════════ CHANGELOG PANEL (right side, always visible — Arquel style) ═══
     local clTab = nil
-    if hasCL then
-        clTab = Instance.new("Frame"); clTab.Name = "ChangelogTab"
-        clTab.Size = UDim2.new(1,0,1,0); clTab.BackgroundTransparency = 1
-        clTab.Visible = false; clTab.Parent = mainArea
+    if hasCL and not mobile then
+        -- Vertical separator on the left edge of the CL panel
+        local clSep = Instance.new("Frame")
+        clSep.Size = UDim2.new(0,1,0,mainAreaH)
+        clSep.Position = UDim2.new(1,-clW,0,46)
+        clSep.BackgroundColor3 = C.border
+        clSep.BackgroundTransparency = 0.3
+        clSep.BorderSizePixel = 0; clSep.ZIndex = 6
+        clSep.Parent = container
 
+        clTab = Instance.new("Frame"); clTab.Name = "ChangelogPanel"
+        clTab.Size = UDim2.new(0,clW-1,0,mainAreaH)
+        clTab.Position = UDim2.new(1,-(clW-1),0,46)
+        clTab.BackgroundColor3 = C.bg
+        clTab.BorderSizePixel = 0; clTab.ZIndex = 5
+        clTab.Parent = container
+
+        -- Fill top-left corner (rounded container clips it otherwise)
+        local clCornerFill = Instance.new("Frame")
+        clCornerFill.Size = UDim2.new(1,0,0,14)
+        clCornerFill.BackgroundColor3 = C.bg
+        clCornerFill.BorderSizePixel = 0; clCornerFill.Parent = clTab
+
+        -- Panel header
+        local clHeadRow = Instance.new("Frame")
+        clHeadRow.Size = UDim2.new(1,-16,0,22)
+        clHeadRow.Position = UDim2.new(0,8,0,12)
+        clHeadRow.BackgroundTransparency = 1; clHeadRow.Parent = clTab
+
+        lbl({Size=UDim2.new(1,0,1,0), Text="Changelog",
+             TextColor3=C.txtS, TextSize=11, Font=Enum.Font.GothamBold,
+             TextXAlignment=Enum.TextXAlignment.Left}, clHeadRow)
+
+        -- Divider under CL header
+        local clHDiv = Instance.new("Frame")
+        clHDiv.Size = UDim2.new(1,-16,0,1)
+        clHDiv.Position = UDim2.new(0,8,0,38)
+        clHDiv.BackgroundColor3 = C.border
+        clHDiv.BackgroundTransparency = 0.4
+        clHDiv.BorderSizePixel = 0; clHDiv.Parent = clTab
+
+        -- Scrollable changelog entries
         local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1,-28,1,-16); scroll.Position = UDim2.new(0,14,0,8)
+        scroll.Size = UDim2.new(1,-8,1,-50)
+        scroll.Position = UDim2.new(0,4,0,44)
         scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
-        scroll.ScrollBarThickness = 3; scroll.ScrollBarImageColor3 = C.border
-        scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        scroll.ScrollBarThickness = 2; scroll.ScrollBarImageColor3 = C.surfaceL
+        scroll.CanvasSize = UDim2.new(0,0,0,0)
+        scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
         scroll.Parent = clTab
         local sLayout = Instance.new("UIListLayout", scroll)
-        sLayout.Padding = UDim.new(0,8); sLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        sLayout.Padding = UDim.new(0,5); sLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
         for idx, entry in ipairs(cfg.Changelog) do
             local ef = Instance.new("Frame"); ef.BackgroundColor3 = C.surfaceL
             ef.BorderSizePixel = 0; ef.Size = UDim2.new(1,0,0,0)
-            ef.AutomaticSize = Enum.AutomaticSize.Y; ef.LayoutOrder = idx; ef.Parent = scroll
-            corner(ef, 8); stroke(ef, C.border, 1, 0.5)
-            local ep = Instance.new("UIPadding",ef)
-            ep.PaddingLeft=UDim.new(0,12); ep.PaddingRight=UDim.new(0,12)
-            ep.PaddingTop=UDim.new(0,9);   ep.PaddingBottom=UDim.new(0,9)
-            local ec = Instance.new("Frame"); ec.BackgroundTransparency=1
-            ec.Size=UDim2.new(1,0,0,0); ec.AutomaticSize=Enum.AutomaticSize.Y; ec.Parent=ef
-            local el = Instance.new("UIListLayout",ec); el.Padding=UDim.new(0,3)
-            el.SortOrder=Enum.SortOrder.LayoutOrder
+            ef.AutomaticSize = Enum.AutomaticSize.Y; ef.LayoutOrder = idx
+            ef.Parent = scroll
+            corner(ef, 7); stroke(ef, C.border, 1, 0.55)
 
+            local ep = Instance.new("UIPadding",ef)
+            ep.PaddingLeft=UDim.new(0,8); ep.PaddingRight=UDim.new(0,8)
+            ep.PaddingTop=UDim.new(0,7);  ep.PaddingBottom=UDim.new(0,7)
+
+            local ec = Instance.new("Frame"); ec.BackgroundTransparency=1
+            ec.Size=UDim2.new(1,0,0,0); ec.AutomaticSize=Enum.AutomaticSize.Y
+            ec.Parent=ef
+            local el2 = Instance.new("UIListLayout",ec)
+            el2.Padding=UDim.new(0,3); el2.SortOrder=Enum.SortOrder.LayoutOrder
+
+            -- Version + date header row
             local hr = Instance.new("Frame"); hr.BackgroundTransparency=1
-            hr.Size=UDim2.new(1,0,0,20); hr.LayoutOrder=1; hr.Parent=ec
-            lbl({Size=UDim2.new(0.5,0,1,0),Text="v"..(entry.version or "?"),
-                 TextColor3=C.primary,TextSize=13,Font=Enum.Font.GothamBold,
+            hr.Size=UDim2.new(1,0,0,17); hr.LayoutOrder=1; hr.Parent=ec
+            lbl({Size=UDim2.new(0.55,0,1,0), Text="v"..(entry.version or "?"),
+                 TextColor3=C.primary, TextSize=11, Font=Enum.Font.GothamBold,
                  TextXAlignment=Enum.TextXAlignment.Left}, hr)
-            lbl({Size=UDim2.new(0.5,0,1,0),Position=UDim2.new(0.5,0,0,0),
-                 Text=entry.date or "",TextColor3=C.txtM,TextSize=10,Font=Enum.Font.Gotham,
+            lbl({Size=UDim2.new(0.45,0,1,0), Position=UDim2.new(0.55,0,0,0),
+                 Text=entry.date or "", TextColor3=C.txtM, TextSize=9, Font=Enum.Font.Gotham,
                  TextXAlignment=Enum.TextXAlignment.Right}, hr)
 
             for ci, change in ipairs(entry.changes or {}) do
-                lbl({Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-                     Text="  •  "..change,TextColor3=C.txtS,TextSize=11,Font=Enum.Font.Gotham,
-                     TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,
+                lbl({Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y,
+                     Text="• "..change, TextColor3=C.txtS, TextSize=10, Font=Enum.Font.Gotham,
+                     TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true,
                      LayoutOrder=ci+1}, ec)
             end
         end
@@ -834,14 +836,26 @@ function SorinUILib:build()
 
     -- ── Store elements ────────────────────────────────────────────────────
     self.el = {
-        backdrop=backdrop, container=container, mainArea=mainArea,
-        keyTab=keyTab, clTab=clTab, content=content,
-        iconFrame=iconFrame, iconImg=iconImg,
-        inputFrame=inputSec, keyInput=keyInput, inputStroke=inputStroke,
-        verifyButton=verifyBtn, headerText=brand:FindFirstChild("HeaderText"),
-        closeButton=closeBtn, tabBtns=tabBtns,
-        s1Lbl=s1Lbl, provRow=provRow, s2Lbl=s2Lbl,
-        titleLbl=titleLbl, subLbl=subLbl,
+        backdrop    = backdrop,
+        container   = container,
+        mainArea    = mainArea,
+        keyTab      = keyTab,
+        clTab       = clTab,
+        content     = content,
+        iconFrame   = hIconBg,   -- small header icon, used by _pulse
+        iconImg     = nil,
+        inputFrame  = inputSec,
+        keyInput    = keyInput,
+        inputStroke = inputStroke,
+        verifyButton= verifyBtn,
+        headerText  = brand:FindFirstChild("HeaderText"),
+        closeButton = closeBtn,
+        tabBtns     = {},        -- no tabs; kept for compat
+        s1Lbl       = s1Lbl,
+        provRow     = provRow,
+        s2Lbl       = s2Lbl,
+        titleLbl    = hTitleLbl,
+        subLbl      = subLbl,
     }
 
     -- ── Particles ─────────────────────────────────────────────────────────
@@ -860,62 +874,66 @@ function SorinUILib:build()
         task.spawn(function() self:_loadAnim() end)
     else
         backdrop.BackgroundTransparency = 1; container.BackgroundTransparency = 1
-        TweenService:Create(backdrop, TweenInfo.new(0.3,Enum.EasingStyle.Quad),{BackgroundTransparency=0.42}):Play()
+        TweenService:Create(backdrop,TweenInfo.new(0.3,Enum.EasingStyle.Quad),{BackgroundTransparency=0.42}):Play()
         TweenService:Create(container,TweenInfo.new(0.3,Enum.EasingStyle.Quad),{BackgroundTransparency=0}):Play()
     end
 end
 
 -- ── Loading animation ─────────────────────────────────────────────────────
+-- Simplified: no bouncing icon. Clean staggered fade-in.
 function SorinUILib:_loadAnim()
     local e = self.el
     TweenService:Create(e.backdrop, TweenInfo.new(0.45,Enum.EasingStyle.Quad),{BackgroundTransparency=0.42}):Play()
     TweenService:Create(e.container,TweenInfo.new(0.45,Enum.EasingStyle.Quad),{BackgroundTransparency=0}):Play()
-    task.wait(0.55)
-    e.iconFrame.BackgroundTransparency = 0
-    TweenService:Create(e.iconFrame,TweenInfo.new(0.55,Enum.EasingStyle.Back,Enum.EasingDirection.Out),
-        {Size=UDim2.new(0,46,0,46)}):Play()
-    TweenService:Create(e.iconImg,TweenInfo.new(0.4),{ImageTransparency=0}):Play()
-    task.wait(0.6)
-    for i, el in ipairs({e.titleLbl,e.subLbl,e.s1Lbl,e.s2Lbl}) do
-        if el then task.delay((i-1)*0.09,function() TweenService:Create(el,TweenInfo.new(0.35),{TextTransparency=0}):Play() end) end
+    task.wait(0.5)
+    -- Fade in header icon
+    if e.iconFrame then
+        TweenService:Create(e.iconFrame,TweenInfo.new(0.3),{BackgroundTransparency=0}):Play()
     end
-    task.wait(0.55)
+    -- Fade in text labels (header title, subtitle, section labels)
+    for i, el in ipairs({e.titleLbl, e.subLbl, e.s1Lbl, e.s2Lbl}) do
+        if el then
+            task.delay((i-1)*0.07, function()
+                TweenService:Create(el,TweenInfo.new(0.3),{TextTransparency=0}):Play()
+            end)
+        end
+    end
+    task.wait(0.45)
+    -- Fade in provider buttons
     for _, btn in ipairs(e.provRow:GetChildren()) do
         if btn:IsA("TextButton") then
             TweenService:Create(btn,TweenInfo.new(0.25),{BackgroundTransparency=0}):Play()
             for _, d in ipairs(btn:GetDescendants()) do
-                if d:IsA("TextLabel") then pcall(function() TweenService:Create(d,TweenInfo.new(0.25),{TextTransparency=0}):Play() end) end
+                if d:IsA("TextLabel") then
+                    pcall(function() TweenService:Create(d,TweenInfo.new(0.25),{TextTransparency=0}):Play() end)
+                end
             end
         end
     end
-    task.wait(0.15)
+    task.wait(0.2)
+    -- Fade in input
     TweenService:Create(e.inputFrame,TweenInfo.new(0.3),{BackgroundTransparency=0}):Play()
     for _, d in ipairs(e.inputFrame:GetDescendants()) do
         pcall(function()
-            if d:IsA("TextLabel") or d:IsA("TextBox") then TweenService:Create(d,TweenInfo.new(0.3),{TextTransparency=0}):Play() end
+            if d:IsA("TextLabel") or d:IsA("TextBox") then
+                TweenService:Create(d,TweenInfo.new(0.3),{TextTransparency=0}):Play()
+            end
         end)
     end
+    -- Fade in verify button
     TweenService:Create(e.verifyButton,TweenInfo.new(0.3),{BackgroundTransparency=0}):Play()
     for _, d in ipairs(e.verifyButton:GetDescendants()) do
-        pcall(function() if d:IsA("TextLabel") then TweenService:Create(d,TweenInfo.new(0.3),{TextTransparency=0}):Play() end end)
+        pcall(function()
+            if d:IsA("TextLabel") then
+                TweenService:Create(d,TweenInfo.new(0.3),{TextTransparency=0}):Play()
+            end
+        end)
     end
 end
 
--- ── Tab switching ─────────────────────────────────────────────────────────
-function SorinUILib:_switchTab(id)
-    local e = self.el
-    for tabId, btn in pairs(e.tabBtns) do
-        local active = (tabId == id)
-        TweenService:Create(btn,TweenInfo.new(0.15),{
-            TextColor3=active and C.txtP or C.txtM,
-            BackgroundTransparency=active and 0 or 1,
-            BackgroundColor3=active and C.surfaceM or C.surfaceL,
-        }):Play()
-        local ind = btn:FindFirstChild("Indicator")
-        if ind then TweenService:Create(ind,TweenInfo.new(0.15),{BackgroundTransparency=active and 0 or 1}):Play() end
-    end
-    if e.keyTab  then e.keyTab.Visible  = (id=="key")       end
-    if e.clTab   then e.clTab.Visible   = (id=="changelog") end
+-- ── Tab switching (no-op: changelog is now a permanent side panel) ─────────
+function SorinUILib:_switchTab(_id)
+    -- Tabs have been replaced by a 3-panel layout. Nothing to switch.
 end
 
 -- ── Status ────────────────────────────────────────────────────────────────
@@ -949,12 +967,12 @@ function SorinUILib:_shake()
     f.Position = o
 end
 
--- ── Success pulse ─────────────────────────────────────────────────────────
+-- ── Success pulse (pulses the compact header icon) ────────────────────────
 function SorinUILib:_pulse()
     local iF = self.el.iconFrame; if not iF then return end
-    TweenService:Create(iF,TweenInfo.new(0.2,Enum.EasingStyle.Back),{Size=UDim2.new(0,60,0,60)}):Play()
-    task.wait(0.22)
-    TweenService:Create(iF,TweenInfo.new(0.15),{Size=UDim2.new(0,46,0,46)}):Play()
+    TweenService:Create(iF,TweenInfo.new(0.18,Enum.EasingStyle.Back),{Size=UDim2.new(0,36,0,36)}):Play()
+    task.wait(0.2)
+    TweenService:Create(iF,TweenInfo.new(0.14),{Size=UDim2.new(0,28,0,28)}):Play()
 end
 
 -- ── Spinner ───────────────────────────────────────────────────────────────
