@@ -325,9 +325,9 @@ function SorinUILib:build()
         local lpTopFill = Instance.new("Frame")
         lpTopFill.Size = UDim2.new(1,0,0,14); lpTopFill.BackgroundColor3 = C.bg
         lpTopFill.BorderSizePixel = 0; lpTopFill.Parent = lp
-        local sep = Instance.new("Frame"); sep.Size = UDim2.new(0,1,1,0)
-        sep.Position = UDim2.new(1,-1,0,0); sep.BackgroundColor3 = C.border
-        sep.BackgroundTransparency = 0.3; sep.BorderSizePixel = 0; sep.Parent = lp
+        local sep = Instance.new("Frame"); sep.Size = UDim2.new(0,1,1,-14)
+        sep.Position = UDim2.new(1,-1,0,14); sep.BackgroundColor3 = C.border
+        sep.BackgroundTransparency = 0.45; sep.BorderSizePixel = 0; sep.Parent = lp
 
         local inner = Instance.new("Frame"); inner.BackgroundTransparency = 1
         inner.Size = UDim2.new(1,-20,1,-14); inner.Position = UDim2.new(0,10,0,10)
@@ -742,6 +742,66 @@ function SorinUILib:build()
         TweenService:Create(verifyBtn,TweenInfo.new(0.08),{BackgroundColor3=C.success}):Play()
     end)
     verifyBtn.MouseButton1Click:Connect(function() self:_verify() end)
+
+    -- ── Footer icon row (fills space below verify, mirrors Arquel's icon strip) ──
+    local footDiv = Instance.new("Frame"); footDiv.Name = "FooterDivider"
+    footDiv.Size = UDim2.new(1,0,0,1); footDiv.Position = UDim2.new(0,0,0,266)
+    footDiv.BackgroundColor3 = C.border; footDiv.BackgroundTransparency = 0.45
+    footDiv.BorderSizePixel = 0; footDiv.Parent = content
+
+    local footRow = Instance.new("Frame"); footRow.Name = "FooterIcons"
+    footRow.Size = UDim2.new(1,0,0,28); footRow.Position = UDim2.new(0,0,0,276)
+    footRow.BackgroundTransparency = 1; footRow.Parent = content
+
+    local footX = 0
+    -- Discord button
+    if cfg.DiscordLink and cfg.DiscordLink ~= "" then
+        local fDisc = Instance.new("TextButton")
+        fDisc.Size = UDim2.new(0,28,0,28); fDisc.Position = UDim2.new(0,footX,0,0)
+        fDisc.BackgroundColor3 = C.discord; fDisc.BackgroundTransparency = 0.68
+        fDisc.BorderSizePixel = 0; fDisc.AutoButtonColor = false; fDisc.ZIndex = 4
+        fDisc.Parent = footRow; corner(fDisc, 7)
+        stroke(fDisc, C.discord, 1, 0.55)
+        if cfg.DiscordIcon and cfg.DiscordIcon ~= "" then
+            fDisc.Text = ""
+            local fi = Instance.new("ImageLabel"); fi.BackgroundTransparency = 1
+            fi.Size = UDim2.new(0,16,0,16); fi.AnchorPoint = Vector2.new(0.5,0.5)
+            fi.Position = UDim2.new(0.5,0,0.5,0); fi.Image = cfg.DiscordIcon
+            fi.ScaleType = Enum.ScaleType.Fit; fi.ZIndex = 5; fi.Parent = fDisc
+        else
+            fDisc.Text = "D"; fDisc.TextColor3 = Color3.new(1,1,1)
+            fDisc.TextSize = 13; fDisc.Font = Enum.Font.GothamBold
+        end
+        fDisc.MouseEnter:Connect(function()
+            TweenService:Create(fDisc,TweenInfo.new(0.15),{BackgroundTransparency=0.25}):Play()
+        end)
+        fDisc.MouseLeave:Connect(function()
+            TweenService:Create(fDisc,TweenInfo.new(0.15),{BackgroundTransparency=0.68}):Play()
+        end)
+        fDisc.MouseButton1Click:Connect(function()
+            if setclipboard then setclipboard(cfg.DiscordLink) end
+        end)
+        footX = footX + 36
+    end
+    -- Shop link button
+    if cfg.ShopLink and cfg.ShopLink ~= "" then
+        local fShop = Instance.new("TextButton")
+        fShop.Size = UDim2.new(0,28,0,28); fShop.Position = UDim2.new(0,footX,0,0)
+        fShop.BackgroundColor3 = C.surfaceL; fShop.BackgroundTransparency = 0.3
+        fShop.BorderSizePixel = 0; fShop.AutoButtonColor = false; fShop.ZIndex = 4
+        fShop.Text = "🛒"; fShop.TextSize = 13; fShop.Font = Enum.Font.Gotham
+        fShop.Parent = footRow; corner(fShop, 7)
+        stroke(fShop, C.border, 1, 0.5)
+        fShop.MouseEnter:Connect(function()
+            TweenService:Create(fShop,TweenInfo.new(0.15),{BackgroundTransparency=0.05}):Play()
+        end)
+        fShop.MouseLeave:Connect(function()
+            TweenService:Create(fShop,TweenInfo.new(0.15),{BackgroundTransparency=0.3}):Play()
+        end)
+        fShop.MouseButton1Click:Connect(function()
+            if setclipboard then setclipboard(cfg.ShopLink) end
+        end)
+    end
 
     -- ════════ CHANGELOG PANEL (right side, always visible — Arquel style) ═══
     local clTab = nil
