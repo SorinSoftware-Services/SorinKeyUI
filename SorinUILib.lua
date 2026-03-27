@@ -1,5 +1,7 @@
 -- ================================================
---   v2
+--   SorinUILib.lua  –  Key System UI Library
+--   Look: SorinUILib (GitHub-dark palette)
+--   Structure: KirmandaUI / Arqel pattern
 -- ================================================
 
 local cloneref = cloneref or function(o) return o end
@@ -1688,8 +1690,6 @@ local function buildKeyUI()
 
     -- Close button
     closeBtn.MouseButton1Click:Connect(function()
-        -- set KEYLESS immediately so Junkie's wait loop exits before fullCleanup destroys the GUI
-        if Internal.IsJunkieMode then getgenv().SCRIPT_KEY = "KEYLESS" end
         SorinUI:Notify("Goodbye","See you next time!",2,"close")
         closeDoorsThenExit(function()
             fullCleanup()
@@ -1699,6 +1699,8 @@ local function buildKeyUI()
             task.wait(0.4); screenGui:Destroy()
             if SorinUI.Callbacks.OnClose then SorinUI.Callbacks.OnClose() end
         end)
+        -- in Junkie mode: do NOT set SCRIPT_KEY on close — loop keeps running silently,
+        -- Junkie never receives a signal and therefore never kicks the player
     end)
 
     if discordBtn then
@@ -1826,9 +1828,7 @@ function SorinUI:LaunchJunkie(config)
         end
 
         buildKeyUI()
-        while not getgenv().SCRIPT_KEY and CoreGui:FindFirstChild("SorinKeyUI") do
-            task.wait(0.1)
-        end
+        while not getgenv().SCRIPT_KEY do task.wait(0.1) end
     end)
 end
 
