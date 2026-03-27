@@ -629,14 +629,20 @@ local function createChangelogPanel(container, winW, panelH, panelW, mainFrame, 
         local el = Instance.new("UIListLayout",ef); el.Padding = UDim.new(0,4)
         el.SortOrder = Enum.SortOrder.LayoutOrder
         lbl({
-            Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, LayoutOrder=1,
-            Text=(entry.Version or entry.version or "?").."  •  "..(entry.Date or entry.date or ""),
+            Size=UDim2.new(1,0,0,16), LayoutOrder=1,
+            Text=tostring(entry.Version or entry.version or "?"),
             TextColor3=T.Accent, TextSize=12, Font=Enum.Font.GothamBold,
-            TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true
+            TextXAlignment=Enum.TextXAlignment.Left
+        }, ef)
+        lbl({
+            Size=UDim2.new(1,0,0,13), LayoutOrder=2,
+            Text=tostring(entry.Date or entry.date or ""),
+            TextColor3=T.TextMuted, TextSize=10, Font=Enum.Font.Gotham,
+            TextXAlignment=Enum.TextXAlignment.Left
         }, ef)
         for j, ch in ipairs(entry.Changes or entry.changes or {}) do
             lbl({
-                Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, LayoutOrder=j+1,
+                Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, LayoutOrder=j+2,
                 Text="  •  "..ch, TextColor3=T.TextDim, TextSize=11, Font=Enum.Font.Gotham,
                 TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true
             }, ef)
