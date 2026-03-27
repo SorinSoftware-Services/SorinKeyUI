@@ -12,6 +12,7 @@ local RunService       = cloneref(game:GetService("RunService"))
 local Lighting         = cloneref(game:GetService("Lighting"))
 local Players          = cloneref(game:GetService("Players"))
 local Workspace        = cloneref(game:GetService("Workspace"))
+local HttpService      = cloneref(game:GetService("HttpService"))
 
 if getgenv().SorinUILoaded and CoreGui:FindFirstChild("SorinKeyUI") then
     return getgenv().SorinUI
@@ -762,8 +763,19 @@ local function createUserInfoPanel(container, winW, panelH, panelW, mainFrame, g
     lbl({Size=UDim2.new(1,-22,0,13), Position=UDim2.new(0,0,0,0),
          Text="HWID", TextColor3=T.TextMuted, TextSize=9, Font=Enum.Font.Gotham,
          TextXAlignment=Enum.TextXAlignment.Left}, hwRow)
+    local hwidDisplay do
+        local raw = hwid
+        if raw ~= "N/A" and not raw:find("-") then
+            -- insert dashes every 8 chars for readability
+            local parts = {}
+            for i = 1, #raw, 8 do parts[#parts+1] = raw:sub(i, i+7) end
+            raw = table.concat(parts, "-")
+        end
+        -- truncate if still very long
+        hwidDisplay = #raw > 27 and (raw:sub(1,27).."…") or raw
+    end
     lbl({Size=UDim2.new(1,-22,0,15), Position=UDim2.new(0,0,0,14),
-         Text=string.rep("•",12), TextColor3=T.TextDim, TextSize=10, Font=Enum.Font.GothamBold,
+         Text=hwidDisplay, TextColor3=T.TextDim, TextSize=9, Font=Enum.Font.GothamBold,
          TextXAlignment=Enum.TextXAlignment.Left}, hwRow)
     local copyBtn = Instance.new("ImageButton")
     copyBtn.Size = UDim2.new(0,18,0,18); copyBtn.Position = UDim2.new(1,0,0.5,0)
@@ -1002,7 +1014,15 @@ local function showLoadingScreen(onComplete)
         task.wait(0.5)
         setPhase(1) task.wait(0.3)
         setPhase(2) ensureFolders() task.wait(0.25)
-        setPhase(3) loadAllIcons() task.wait(0.2)
+        setPhase(3)
+        do
+            local iconsDone = false
+            task.spawn(function() loadAllIcons(); iconsDone = true end)
+            local t0 = tick()
+            while not iconsDone and (tick() - t0) < 8 do task.wait(0.1) end
+            Internal.IconsLoaded = true  -- proceed even if timed out, fallbacks cover the rest
+        end
+        task.wait(0.2)
         setPhase(4) task.wait(0.3)
         setPhase(5) task.wait(0.55)
         if pulseThread then task.cancel(pulseThread) end
@@ -1019,7 +1039,8 @@ local function showLoadingScreen(onComplete)
         completed = true
     end)
 
-    while not completed do task.wait(0.05) end
+    local t0 = tick()
+    while not completed and (tick() - t0) < 20 do task.wait(0.05) end
 end
 
 local function ensureIconsReady(cb)
@@ -1055,6 +1076,51 @@ local function headerIconBtn(parent, iconKey, color, xRight, zidx)
         TweenService:Create(btn,TweenInfo.new(0.15),{BackgroundTransparency=0.4}):Play()
     end)
     return btn, ico
+end
+
+-- ════════════════════════════════════════════════
+--  DISCORD INVITE  (RPC → clipboard fallback)
+-- ════════════════════════════════════════════════
+
+local function openDiscordInvite(url)
+    -- extract invite code from URL
+    local code = url:match("discord%.gg/([^/%s]+)") or url:match("discord%.com/invite/([^/%s]+)")
+    -- resolve http request function (executor-dependent)
+    local httpReq = (typeof(httpRequest) == "function" and httpRequest)
+                 or (typeof(request)     == "function" and request)
+                 or (syn and typeof(syn.request) == "function" and syn.request)
+                 or nil
+
+    if code and httpReq then
+        local ports = {6463,6464,6465,6466,6467,6468,6469,6470,6471,6472}
+        for _, port in ipairs(ports) do
+            local ok, res = pcall(httpReq, {
+                Url    = ("http://127.0.0.1:%d/rpc?v=1"):format(port),
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json",
+                    ["Origin"]       = "https://discord.com",
+                },
+                Body = HttpService:JSONEncode({
+                    cmd   = "INVITE_BROWSER",
+                    args  = { code = code },
+                    nonce = HttpService:GenerateGUID(false),
+                }),
+            })
+            if ok and res and (res.Success or (res.StatusCode and res.StatusCode >= 200 and res.StatusCode < 300)) then
+                return true, "rpc"
+            end
+        end
+    end
+
+    -- fallback: copy to clipboard
+    local copied = false
+    if typeof(setclipboard) == "function" then
+        copied = pcall(setclipboard, url)
+    elseif typeof(toclipboard) == "function" then
+        copied = pcall(toclipboard, url)
+    end
+    return false, copied and "clipboard" or "none"
 end
 
 -- ════════════════════════════════════════════════
@@ -1360,41 +1426,6 @@ local function buildKeyUI()
     footLayout.FillDirection = Enum.FillDirection.Horizontal
     footLayout.VerticalAlignment = Enum.VerticalAlignment.Center; footLayout.Padding = UDim.new(0,8)
 
-    if SorinUI.Links.Discord ~= "" then
-        local fDisc = Instance.new("TextButton")
-        fDisc.Size = UDim2.new(0,28,0,28); fDisc.BackgroundColor3 = T.Discord
-        fDisc.BackgroundTransparency = 0.7; fDisc.BorderSizePixel = 0
-        fDisc.Text = ""; fDisc.AutoButtonColor = false; fDisc.LayoutOrder = 1
-        fDisc.Parent = footRow; corner(fDisc, 7); stroke(fDisc, T.Discord, 1, 0.5)
-        local fi = Instance.new("ImageLabel"); fi.Size = UDim2.new(0,16,0,16)
-        fi.AnchorPoint = Vector2.new(0.5,0.5); fi.Position = UDim2.new(0.5,0,0.5,0)
-        fi.BackgroundTransparency = 1; fi.Image = getIcon("discord")
-        fi.ImageColor3 = Color3.new(1,1,1); fi.ScaleType = Enum.ScaleType.Fit; fi.Parent = fDisc
-        fDisc.MouseEnter:Connect(function() TweenService:Create(fDisc,TweenInfo.new(0.15),{BackgroundTransparency=0.25}):Play() end)
-        fDisc.MouseLeave:Connect(function() TweenService:Create(fDisc,TweenInfo.new(0.15),{BackgroundTransparency=0.7}):Play() end)
-        fDisc.MouseButton1Click:Connect(function()
-            pcall(function() setclipboard(SorinUI.Links.Discord) end)
-            SorinUI:Notify("Discord","Invite link copied!",2,"discord")
-        end)
-    end
-
-    if SorinUI.Links.Shop ~= "" then
-        local fShop = Instance.new("TextButton")
-        fShop.Size = UDim2.new(0,28,0,28); fShop.BackgroundColor3 = T.SurfaceLight
-        fShop.BackgroundTransparency = 0.3; fShop.BorderSizePixel = 0
-        fShop.Text = ""; fShop.AutoButtonColor = false; fShop.LayoutOrder = 2
-        fShop.Parent = footRow; corner(fShop, 7); stroke(fShop, T.Border, 1, 0.5)
-        local si = Instance.new("ImageLabel"); si.Size = UDim2.new(0,16,0,16)
-        si.AnchorPoint = Vector2.new(0.5,0.5); si.Position = UDim2.new(0.5,0,0.5,0)
-        si.BackgroundTransparency = 1; si.Image = getIcon("cart")
-        si.ImageColor3 = T.TextDim; si.ScaleType = Enum.ScaleType.Fit; si.Parent = fShop
-        fShop.MouseEnter:Connect(function() TweenService:Create(fShop,TweenInfo.new(0.15),{BackgroundTransparency=0.05}):Play() end)
-        fShop.MouseLeave:Connect(function() TweenService:Create(fShop,TweenInfo.new(0.15),{BackgroundTransparency=0.3}):Play() end)
-        fShop.MouseButton1Click:Connect(function()
-            pcall(function() setclipboard(SorinUI.Links.Shop) end)
-            SorinUI:Notify("Shop","Shop link copied!",2,"copy")
-        end)
-    end
 
     -- Shop banner (bottom)
     if hasShop then
@@ -1423,7 +1454,7 @@ local function buildKeyUI()
         shopIco.Image = (SorinUI.Shop.Icon ~= "") and SorinUI.Shop.Icon or getIcon("cart")
         shopIco.ImageColor3 = T.Text; shopIco.ScaleType = Enum.ScaleType.Fit; shopIco.Parent = shopIcoW
 
-        local buyBtnW = 65
+        local buyBtnW = 100  -- reserve layout space; button auto-grows to fit text
         local txOff = 12 + shopIcoSz + 4 + 8
         local txW = winW - txOff - buyBtnW - 12 - 8
         lbl({Size=UDim2.new(0,txW,0,18), Position=UDim2.new(0,txOff,0,6),
@@ -1434,12 +1465,15 @@ local function buildKeyUI()
              TextXAlignment=Enum.TextXAlignment.Left, TextTruncate=Enum.TextTruncate.AtEnd}, shopF)
 
         local buyBtn = Instance.new("TextButton")
-        buyBtn.Size = UDim2.new(0,buyBtnW,0,30); buyBtn.AnchorPoint = Vector2.new(1,0.5)
+        buyBtn.Size = UDim2.new(0,0,0,30); buyBtn.AutomaticSize = Enum.AutomaticSize.X
+        buyBtn.AnchorPoint = Vector2.new(1,0.5)
         buyBtn.Position = UDim2.new(1,-12,0.5,0); buyBtn.BackgroundColor3 = T.Secondary
         buyBtn.BorderSizePixel = 0; buyBtn.Text = SorinUI.Shop.ButtonText
         buyBtn.TextColor3 = Color3.new(1,1,1); buyBtn.TextSize = 12
         buyBtn.Font = Enum.Font.GothamBold; buyBtn.AutoButtonColor = false
         buyBtn.Parent = shopF; corner(buyBtn, 7)
+        local buyPad = Instance.new("UIPadding", buyBtn)
+        buyPad.PaddingLeft = UDim.new(0,14); buyPad.PaddingRight = UDim.new(0,14)
         grad(buyBtn, {T.Secondary, Color3.fromRGB(106,63,224)}, 90)
         buyBtn.MouseEnter:Connect(function() TweenService:Create(buyBtn,TweenInfo.new(0.15),{BackgroundColor3=T.SecondaryL}):Play() end)
         buyBtn.MouseLeave:Connect(function() TweenService:Create(buyBtn,TweenInfo.new(0.15),{BackgroundColor3=T.Secondary}):Play() end)
@@ -1608,8 +1642,14 @@ local function buildKeyUI()
 
     if discordBtn then
         discordBtn.MouseButton1Click:Connect(function()
-            pcall(function() setclipboard(SorinUI.Links.Discord) end)
-            SorinUI:Notify("Discord","Invite link copied!",2,"discord")
+            local ok, mode = openDiscordInvite(SorinUI.Links.Discord)
+            if ok then
+                SorinUI:Notify("Discord","Invite opened in Discord!",2,"discord")
+            elseif mode == "clipboard" then
+                SorinUI:Notify("Discord","Invite link copied!",2,"discord")
+            else
+                SorinUI:Notify("Discord","Could not open invite",2,"alert")
+            end
         end)
     end
     if clBtn   then clBtn.MouseButton1Click:Connect(function()   ui.toggleCL(clIco)     end) end
