@@ -629,10 +629,10 @@ local function createChangelogPanel(container, winW, panelH, panelW, mainFrame, 
         local el = Instance.new("UIListLayout",ef); el.Padding = UDim.new(0,4)
         el.SortOrder = Enum.SortOrder.LayoutOrder
         lbl({
-            Size=UDim2.new(1,0,0,20), LayoutOrder=1,
+            Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, LayoutOrder=1,
             Text=(entry.Version or entry.version or "?").."  •  "..(entry.Date or entry.date or ""),
-            TextColor3=T.Accent, TextSize=13, Font=Enum.Font.GothamBold,
-            TextXAlignment=Enum.TextXAlignment.Left
+            TextColor3=T.Accent, TextSize=12, Font=Enum.Font.GothamBold,
+            TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true
         }, ef)
         for j, ch in ipairs(entry.Changes or entry.changes or {}) do
             lbl({
@@ -763,19 +763,8 @@ local function createUserInfoPanel(container, winW, panelH, panelW, mainFrame, g
     lbl({Size=UDim2.new(1,-22,0,13), Position=UDim2.new(0,0,0,0),
          Text="HWID", TextColor3=T.TextMuted, TextSize=9, Font=Enum.Font.Gotham,
          TextXAlignment=Enum.TextXAlignment.Left}, hwRow)
-    local hwidDisplay do
-        local raw = hwid
-        if raw ~= "N/A" and not raw:find("-") then
-            -- insert dashes every 8 chars for readability
-            local parts = {}
-            for i = 1, #raw, 8 do parts[#parts+1] = raw:sub(i, i+7) end
-            raw = table.concat(parts, "-")
-        end
-        -- truncate if still very long
-        hwidDisplay = #raw > 27 and (raw:sub(1,27).."…") or raw
-    end
     lbl({Size=UDim2.new(1,-22,0,15), Position=UDim2.new(0,0,0,14),
-         Text=hwidDisplay, TextColor3=T.TextDim, TextSize=9, Font=Enum.Font.GothamBold,
+         Text=string.rep("•",12), TextColor3=T.TextDim, TextSize=10, Font=Enum.Font.GothamBold,
          TextXAlignment=Enum.TextXAlignment.Left}, hwRow)
     local copyBtn = Instance.new("ImageButton")
     copyBtn.Size = UDim2.new(0,18,0,18); copyBtn.Position = UDim2.new(1,0,0.5,0)
