@@ -1,7 +1,5 @@
 -- ================================================
---   SorinUILib.lua  –  Key System UI Library
---   Look: SorinUILib (GitHub-dark palette)
---   Structure: KirmandaUI / Arqel pattern
+--   v2
 -- ================================================
 
 local cloneref = cloneref or function(o) return o end
