@@ -1690,6 +1690,8 @@ local function buildKeyUI()
 
     -- Close button
     closeBtn.MouseButton1Click:Connect(function()
+        -- set KEYLESS immediately so Junkie's wait loop exits before fullCleanup destroys the GUI
+        if Internal.IsJunkieMode then getgenv().SCRIPT_KEY = "KEYLESS" end
         SorinUI:Notify("Goodbye","See you next time!",2,"close")
         closeDoorsThenExit(function()
             fullCleanup()
@@ -1697,8 +1699,6 @@ local function buildKeyUI()
                 {Position=UDim2.new(0.5,0,-0.5,0)}):Play()
             TweenService:Create(main,TweenInfo.new(0.3),{BackgroundTransparency=1}):Play()
             task.wait(0.4); screenGui:Destroy()
-            -- unblock Junkie's wait loop so it doesn't kick on close
-            if Internal.IsJunkieMode then getgenv().SCRIPT_KEY = "KEYLESS" end
             if SorinUI.Callbacks.OnClose then SorinUI.Callbacks.OnClose() end
         end)
     end)
