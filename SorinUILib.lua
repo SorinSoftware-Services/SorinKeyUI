@@ -1,6 +1,7 @@
 -- ================================================
 --   SorinUILib.lua  –  Key System UI Library
---   Structure: KirmandaUI / Arqel
+--   Look: SorinUILib (GitHub-dark palette)
+--   Structure: KirmandaUI / Arqel pattern
 -- ================================================
 
 local cloneref = cloneref or function(o) return o end
@@ -20,6 +21,9 @@ getgenv().SorinUILoaded = true
 
 local SorinUI = {}
 
+-- ════════════════════════════════════════════════
+--  PUBLIC CONFIG TABLES
+-- ════════════════════════════════════════════════
 
 SorinUI.Appearance = {
     Title    = "Key System",
@@ -88,7 +92,7 @@ SorinUI.Callbacks = {
 }
 
 SorinUI.Changelog = {}
-
+-- Format: { {Version="v1.0", Date="2025-01-01", Changes={"fix 1","fix 2"}} }
 
 SorinUI.Shop = {
     Enabled    = false,
@@ -99,9 +103,13 @@ SorinUI.Shop = {
     Link       = "",
 }
 
-
+-- Multi-tier providers for LuaAuth style systems
+-- Each: {name, duration, checkpoints, color, colorDark, link}
 SorinUI.Providers = {}
 
+-- ════════════════════════════════════════════════
+--  INTERNAL STATE
+-- ════════════════════════════════════════════════
 
 local Internal = {
     BlurEffect       = nil,
@@ -111,6 +119,9 @@ local Internal = {
     IconsLoaded      = false,
 }
 
+-- ════════════════════════════════════════════════
+--  ICON SYSTEM
+-- ════════════════════════════════════════════════
 
 local IconBaseURL = "https://raw.githubusercontent.com/Cobruhehe/expert-octo-doodle/main/Icons/"
 local IconFiles = {
@@ -214,6 +225,9 @@ local function loadAllIconsFromCache()
     Internal.IconsLoaded = true
 end
 
+-- ════════════════════════════════════════════════
+--  UTILITY
+-- ════════════════════════════════════════════════
 
 local function isMobile()
     return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
@@ -289,6 +303,9 @@ local function validateKey(key, fn)
     return r == true
 end
 
+-- ════════════════════════════════════════════════
+--  BLUR
+-- ════════════════════════════════════════════════
 
 local function enableBlur()
     if not SorinUI.Options.Blur then return end
@@ -310,6 +327,9 @@ local function disableBlur()
     end
 end
 
+-- ════════════════════════════════════════════════
+--  CLEANUP
+-- ════════════════════════════════════════════════
 
 local function fullCleanup()
     getgenv().SorinUILoaded = false
@@ -319,6 +339,9 @@ local function fullCleanup()
     end
 end
 
+-- ════════════════════════════════════════════════
+--  UI HELPERS
+-- ════════════════════════════════════════════════
 
 local function corner(p, r)
     local c = Instance.new("UICorner", p); c.CornerRadius = UDim.new(0, r or 10); return c
@@ -383,6 +406,9 @@ local function panelHeader(parent, title, iconKey)
     return ph, closeBtn
 end
 
+-- ════════════════════════════════════════════════
+--  DRAGGING
+-- ════════════════════════════════════════════════
 
 local function setupDragging(header, container)
     if not SorinUI.Options.Draggable then return end
@@ -405,6 +431,9 @@ local function setupDragging(header, container)
     end)
 end
 
+-- ════════════════════════════════════════════════
+--  PARTICLES
+-- ════════════════════════════════════════════════
 
 local function startParticles(host)
     local T = SorinUI.Theme
@@ -426,6 +455,9 @@ local function startParticles(host)
     end)
 end
 
+-- ════════════════════════════════════════════════
+--  NOTIFICATION SYSTEM
+-- ════════════════════════════════════════════════
 
 function SorinUI:Notify(title, message, duration, iconType)
     duration = duration or 4; iconType = iconType or "info"
@@ -519,6 +551,9 @@ function SorinUI:Notify(title, message, duration, iconType)
     cb.MouseButton1Click:Connect(dismiss)
 end
 
+-- ════════════════════════════════════════════════
+--  DOOR OVERLAY
+-- ════════════════════════════════════════════════
 
 local function createDoors(parent, W, H)
     local T = SorinUI.Theme
@@ -526,6 +561,7 @@ local function createDoors(parent, W, H)
     overlay.Name = "DoorOverlay"; overlay.Size = UDim2.new(1,0,1,0)
     overlay.BackgroundTransparency = 1; overlay.ClipsDescendants = true
     overlay.ZIndex = 50; overlay.Parent = parent
+    corner(overlay, 12)  -- match main window radius so doors clip to rounded corners
 
     local left = Instance.new("Frame")
     left.Size = UDim2.new(0.5,0,1,0); left.BackgroundColor3 = T.Header
@@ -571,6 +607,9 @@ local function createDoors(parent, W, H)
     return {overlay=overlay, open=openDoors, close=closeDoors}
 end
 
+-- ════════════════════════════════════════════════
+--  CHANGELOG PANEL  (slides right)
+-- ════════════════════════════════════════════════
 
 local function createChangelogPanel(container, winW, panelH, panelW, mainFrame, gap)
     local T = SorinUI.Theme
@@ -658,6 +697,9 @@ local function createChangelogPanel(container, winW, panelH, panelW, mainFrame, 
     return panel, toggle, function() return isOpen end, panelW
 end
 
+-- ════════════════════════════════════════════════
+--  USER INFO PANEL  (slides left)
+-- ════════════════════════════════════════════════
 
 local function createUserInfoPanel(container, winW, panelH, panelW, mainFrame, gap)
     local T = SorinUI.Theme
@@ -813,6 +855,9 @@ local function createUserInfoPanel(container, winW, panelH, panelW, mainFrame, g
     return panel, toggle, function() return isOpen end, panelW
 end
 
+-- ════════════════════════════════════════════════
+--  CENTERED LAYOUT BUILDER
+-- ════════════════════════════════════════════════
 
 local function buildCenteredUI(screenGui, winW, winH, userPW, clPW, gap)
     local panelH = winH  -- panels match window height
@@ -871,6 +916,9 @@ local function buildCenteredUI(screenGui, winW, winH, userPW, clPW, gap)
     }
 end
 
+-- ════════════════════════════════════════════════
+--  LOADING SCREEN  (phase-based, like Kirmada)
+-- ════════════════════════════════════════════════
 
 local function showLoadingScreen(onComplete)
     local T = SorinUI.Theme
@@ -889,14 +937,21 @@ local function showLoadingScreen(onComplete)
     bg.BackgroundColor3 = T.Background; bg.BackgroundTransparency = 1
     bg.BorderSizePixel = 0; bg.Parent = gui
 
-    -- Sweep lines (2 horizontal lines that fly across the screen)
-    local linePositions = {0.28, 0.72}
+    -- Sweep lines — multiple at different Y positions, widths, colors, rotations
+    local sweepConfigs = {
+        {y=0.18, w=0.28, rot=0,   col=T.Accent,     spd=1.0},
+        {y=0.35, w=0.18, rot=-4,  col=T.Secondary,  spd=0.75},
+        {y=0.50, w=0.32, rot=0,   col=T.Accent,     spd=1.3},
+        {y=0.65, w=0.20, rot=4,   col=T.SecondaryL, spd=0.9},
+        {y=0.82, w=0.24, rot=-2,  col=T.AccentHover,spd=1.1},
+    }
     local sweepLines = {}
-    for i, yPos in ipairs(linePositions) do
+    for i, cfg in ipairs(sweepConfigs) do
         local line = Instance.new("Frame")
-        line.Size = UDim2.new(0.25, 0, 0, mobile and 1 or 2)
-        line.Position = UDim2.new(1.3, 0, yPos, 0)
-        line.BackgroundColor3 = T.Accent
+        line.Size = UDim2.new(cfg.w, 0, 0, mobile and 1 or 2)
+        line.Position = UDim2.new(1.4, 0, cfg.y, 0)
+        line.Rotation = cfg.rot
+        line.BackgroundColor3 = cfg.col
         line.BackgroundTransparency = 1
         line.BorderSizePixel = 0
         line.Parent = bg
@@ -904,10 +959,10 @@ local function showLoadingScreen(onComplete)
         local g = Instance.new("UIGradient", line)
         g.Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0, 1),
-            NumberSequenceKeypoint.new(0.4, 0.3),
+            NumberSequenceKeypoint.new(0.35, 0.2),
             NumberSequenceKeypoint.new(1, 0),
         })
-        sweepLines[i] = {frame = line, y = yPos}
+        sweepLines[i] = {frame=line, y=cfg.y, spd=cfg.spd}
     end
 
     -- Logo
@@ -989,23 +1044,20 @@ local function showLoadingScreen(onComplete)
         task.wait(0.3)
         TweenService:Create(logoImg,TweenInfo.new(0.4,Enum.EasingStyle.Back),{ImageTransparency=0}):Play()
 
-        -- start sweep line loop
+        -- start sweep line loop — each line runs independently at its own speed
         local sweepRunning = true
-        task.spawn(function()
-            local speeds = {1.1, 0.85}
-            while sweepRunning do
-                for i, sl in ipairs(sweepLines) do
-                    task.spawn(function()
-                        sl.frame.Position = UDim2.new(1.3, 0, sl.y, 0)
-                        sl.frame.BackgroundTransparency = 0.45
-                        TweenService:Create(sl.frame, TweenInfo.new(speeds[i], Enum.EasingStyle.Linear),
-                            {Position = UDim2.new(-0.35, 0, sl.y, 0), BackgroundTransparency = 0.9}):Play()
-                    end)
+        for _, sl in ipairs(sweepLines) do
+            task.spawn(function()
+                while sweepRunning do
+                    sl.frame.Position = UDim2.new(1.4, 0, sl.y, 0)
+                    sl.frame.BackgroundTransparency = 0.3
+                    TweenService:Create(sl.frame, TweenInfo.new(sl.spd, Enum.EasingStyle.Linear),
+                        {Position = UDim2.new(-0.45, 0, sl.y, 0), BackgroundTransparency = 0.85}):Play()
+                    task.wait(sl.spd + math.random(0, 30) * 0.01)
                 end
-                task.wait(0.6)
-            end
-            for _, sl in ipairs(sweepLines) do sl.frame.BackgroundTransparency = 1 end
-        end)
+                sl.frame.BackgroundTransparency = 1
+            end)
+        end
 
         task.wait(0.25)
         for i = 1,5 do
@@ -1059,6 +1111,9 @@ local function ensureIconsReady(cb)
     end
 end
 
+-- ════════════════════════════════════════════════
+--  HEADER BUTTON HELPER
+-- ════════════════════════════════════════════════
 
 local function headerIconBtn(parent, iconKey, color, xRight, zidx)
     local T = SorinUI.Theme
@@ -1083,6 +1138,9 @@ local function headerIconBtn(parent, iconKey, color, xRight, zidx)
     return btn, ico
 end
 
+-- ════════════════════════════════════════════════
+--  DISCORD INVITE  (RPC → clipboard fallback)
+-- ════════════════════════════════════════════════
 
 local function openDiscordInvite(url)
     -- extract invite code from URL
@@ -1125,6 +1183,9 @@ local function openDiscordInvite(url)
     return false, copied and "clipboard" or "none"
 end
 
+-- ════════════════════════════════════════════════
+--  BUILD KEY UI
+-- ════════════════════════════════════════════════
 
 local function buildKeyUI()
     local T = SorinUI.Theme
@@ -1218,7 +1279,7 @@ local function buildKeyUI()
         userBtn, userIco = headerIconBtn(topBar, "user", T.Accent, off)
     end
 
-    -- ── CONTENT AREA
+    -- ── CONTENT AREA ────────────────────────────────
     local content = Instance.new("Frame")
     content.Name = "Content"; content.BackgroundTransparency = 1
     content.Size = UDim2.new(1,-28,1,-46-shopH); content.Position = UDim2.new(0,14,0,54)
@@ -1453,7 +1514,7 @@ local function buildKeyUI()
         shopIco.Image = (SorinUI.Shop.Icon ~= "") and SorinUI.Shop.Icon or getIcon("cart")
         shopIco.ImageColor3 = T.Text; shopIco.ScaleType = Enum.ScaleType.Fit; shopIco.Parent = shopIcoW
 
-        local buyBtnW = 100
+        local buyBtnW = 100  -- reserve layout space; button auto-grows to fit text
         local txOff = 12 + shopIcoSz + 4 + 8
         local txW = winW - txOff - buyBtnW - 12 - 8
         lbl({Size=UDim2.new(0,txW,0,18), Position=UDim2.new(0,txOff,0,6),
@@ -1490,7 +1551,7 @@ local function buildKeyUI()
     -- Door overlay
     local doors = createDoors(main, winW, winH)
 
-    -- ── STATUS & SPINNER LOGIC
+    -- ── STATUS & SPINNER LOGIC ───────────────────────
     local spinConn, dotsThread
     local function setStatus(state, customText)
         if spinConn   then spinConn:Disconnect(); spinConn = nil; statusIco.Rotation = 0 end
@@ -1531,7 +1592,7 @@ local function buildKeyUI()
         end
     end
 
-    -- ── VERIFY / REDEEM LOGIC
+    -- ── VERIFY / REDEEM LOGIC ────────────────────────
     local function shakeInput()
         local o = inputFrame.Position
         for _ = 1,3 do
@@ -1636,6 +1697,8 @@ local function buildKeyUI()
                 {Position=UDim2.new(0.5,0,-0.5,0)}):Play()
             TweenService:Create(main,TweenInfo.new(0.3),{BackgroundTransparency=1}):Play()
             task.wait(0.4); screenGui:Destroy()
+            -- unblock Junkie's wait loop so it doesn't kick on close
+            if Internal.IsJunkieMode then getgenv().SCRIPT_KEY = "KEYLESS" end
             if SorinUI.Callbacks.OnClose then SorinUI.Callbacks.OnClose() end
         end)
     end)
@@ -1667,6 +1730,9 @@ local function buildKeyUI()
     end)
 end
 
+-- ════════════════════════════════════════════════
+--  LAUNCH
+-- ════════════════════════════════════════════════
 
 function SorinUI:Launch()
     Internal.IsJunkieMode = false
@@ -1713,6 +1779,10 @@ function SorinUI:Launch()
         end
     end)
 end
+
+-- ════════════════════════════════════════════════
+--  LAUNCH JUNKIE  (Junkie key system integration)
+-- ════════════════════════════════════════════════
 
 function SorinUI:LaunchJunkie(config)
     assert(config and config.Service and config.Identifier and config.Provider,
@@ -1764,11 +1834,19 @@ function SorinUI:LaunchJunkie(config)
     end)
 end
 
+-- ════════════════════════════════════════════════
+--  CONVENIENCE METHODS
+-- ════════════════════════════════════════════════
 
 function SorinUI:GetSavedKey() return loadKey() end
 function SorinUI:ClearSavedKey() clearKey() end
 
+-- ════════════════════════════════════════════════
+--  BACKWARD COMPAT  (.new(cfg):run())
+-- ════════════════════════════════════════════════
+
 function SorinUI.new(cfg)
+    -- Map old flat-config to new table-based config
     SorinUI.Appearance.Title    = cfg.Title    or "Key System"
     SorinUI.Appearance.Icon     = cfg.LogoImage or ""
     SorinUI.Appearance.Version  = cfg.Version  or ""
@@ -1818,6 +1896,8 @@ function SorinUI.new(cfg)
         end
     }
 end
+
+-- ════════════════════════════════════════════════
 
 getgenv().SorinUI = SorinUI
 return SorinUI
